@@ -1114,6 +1114,7 @@ public interface StorageServiceMBean extends NotificationEmitter
     /** Returns a map of schema version -> list of endpoints reporting that version that we need schema updates for */
     @Deprecated
     public Map<String, Set<InetAddress>> getOutstandingSchemaVersions();
+    @Deprecated
     public Map<String, Set<String>> getOutstandingSchemaVersionsWithPort();
 
     // see CASSANDRA-3200
@@ -1213,6 +1214,7 @@ public interface StorageServiceMBean extends NotificationEmitter
     public void setSkipStreamDiskSpaceCheck(boolean value);
     public boolean getSkipStreamDiskSpaceCheck();
 
-    public void addToCms(List<String> ignoredEndpoints);
-    public List<String> describeCMS();
+    void addToCms(List<String> endpoint);
+    List<String> describeCMS();
+    public void sealPeriod();
 }
