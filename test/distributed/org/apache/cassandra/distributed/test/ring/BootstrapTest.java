@@ -35,6 +35,7 @@ import org.apache.cassandra.db.SystemKeyspace;
 import org.apache.cassandra.dht.Range;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.distributed.Cluster;
+import org.apache.cassandra.distributed.Constants;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
@@ -49,6 +50,7 @@ import static org.apache.cassandra.config.CassandraRelevantProperties.RESET_BOOT
 import static org.apache.cassandra.distributed.action.GossipHelper.withProperty;
 import static org.apache.cassandra.distributed.api.Feature.GOSSIP;
 import static org.apache.cassandra.distributed.api.Feature.NETWORK;
+import static org.junit.Assert.fail;
 
 
 public class BootstrapTest extends TestBaseImpl
@@ -90,6 +92,8 @@ public class BootstrapTest extends TestBaseImpl
     @Test
     public void bootstrapUnspecifiedFailsOnResumeTest() throws Throwable
     {
+        // TODO (TCM) Revisit resumable bootstrap
+        fail("Resuming of failed bootstrap is not yet implemented for TCM");
         RESET_BOOTSTRAP_PROGRESS.clearValue(); // checkstyle: suppress nearby 'clearValueSystemPropertyUsage'
 
         // Need our partitioner active for rangeToBytes conversion below
@@ -178,6 +182,8 @@ public class BootstrapTest extends TestBaseImpl
 
     private void bootstrapTest() throws Throwable
     {
+        // This test simply asserts that the value of the cassandra.reset_bootstrap_progress flag
+        // has no impact on a normal, uninterrupted bootstrap
         int originalNodeCount = 2;
         int expandedNodeCount = originalNodeCount + 1;
 
@@ -189,17 +195,11 @@ public class BootstrapTest extends TestBaseImpl
         {
             populate(cluster, 0, 100);
 
-            IInstanceConfig config = cluster.newInstanceConfig();
+            IInstanceConfig config = cluster.newInstanceConfig()
+                                            .set("auto_bootstrap", true)
+                                            .set(Constants.KEY_DTEST_FULL_STARTUP, true);
             IInvokableInstance newInstance = cluster.bootstrap(config);
-            withProperty(JOIN_RING, false,
-                         () -> newInstance.startup(cluster));
-            // todo; figure out what we should test here - seems its just a "manual" auto_bootstrap=true
-
-//            cluster.forEach(statusToBootstrap(newInstance));
-//
-//            cluster.run(asList(pullSchemaFrom(cluster.get(1)),
-//                               bootstrap()),
-//                        newInstance.config().num());
+            newInstance.startup(cluster);
 
             for (Map.Entry<Integer, Long> e : count(cluster).entrySet())
                 Assert.assertEquals("Node " + e.getKey() + " has incorrect row state",
