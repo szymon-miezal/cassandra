@@ -266,6 +266,7 @@ public class CassandraDaemon
         DatabaseDescriptor.createAllDirectories();
         Keyspace.setInitialized();
         CommitLog.instance.start();
+        runStartupChecks();
 
         try
         {
@@ -276,9 +277,6 @@ public class CassandraDaemon
             throw new AssertionError("Can't initialize cluster metadata service");
         }
         QueryProcessor.registerStatementInvalidatingListener();
-
-        //TODO disabled b/c this involves checking schema but log replay hasn't run yet so it hasn't been constructed
-//        runStartupChecks();
 
         try
         {
