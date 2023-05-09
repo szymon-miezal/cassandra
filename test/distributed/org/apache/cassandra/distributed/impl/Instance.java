@@ -833,7 +833,7 @@ public class Instance extends IsolatedExecutor implements IInvokableInstance
     @Override
     public void postStartup()
     {
-        StorageService.instance.doAuthSetup(false);
+        StorageService.instance.doAuthSetup();
     }
 
     protected void mkdirs()
