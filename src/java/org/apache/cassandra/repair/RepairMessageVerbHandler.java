@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.db.ColumnFamilyStore;
 import org.apache.cassandra.exceptions.RequestFailureReason;
+import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.net.IVerbHandler;
 import org.apache.cassandra.net.Message;
 import org.apache.cassandra.net.MessagingService;
@@ -32,6 +33,7 @@ import org.apache.cassandra.repair.state.ParticipateState;
 import org.apache.cassandra.repair.state.ValidationState;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.service.ActiveRepairService;
+import org.apache.cassandra.service.StorageService;
 import org.apache.cassandra.streaming.PreviewKind;
 import org.apache.cassandra.utils.TimeUUID;
 
@@ -195,7 +197,15 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
 
                         Validator validator = new Validator(vState, validationRequest.nowInSec,
                                                             isIncremental(desc.parentSessionId), previewKind);
-                        ValidationManager.instance.submitValidation(store, validator);
+                        if (acceptMessage(validationRequest, message.from()))
+                        {
+                            ValidationManager.instance.submitValidation(store, validator);
+                        }
+                        else
+                        {
+                            logger.error("Failed creating a merkle tree for {}, {} (see log for details)", desc, message.from());
+                            validator.fail(new RepairOutOfTokenRangeException(validationRequest.desc.ranges));
+                        }
                     }
                     catch (Throwable t)
                     {
@@ -299,5 +309,15 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
     {
         Message<?> reply = respondTo.failureResponse(RequestFailureReason.UNKNOWN);
         MessagingService.instance().send(reply, respondTo.from());
+    }
+
+    private static boolean acceptMessage(final ValidationRequest validationRequest, final InetAddressAndPort from)
+    {
+        return StorageService.instance
+               .getNormalizedLocalRanges(validationRequest.desc.keyspace)
+               .validateRangeRequest(validationRequest.desc.ranges,
+                                     "RepairSession #" + validationRequest.desc.parentSessionId,
+                                     "validation request",
+                                     from);
     }
 }
