@@ -27,6 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import org.apache.cassandra.SchemaLoader;
+import org.apache.cassandra.ServerTestUtils;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -56,7 +57,7 @@ public class CompactionControllerTest extends SchemaLoader
     @BeforeClass
     public static void defineSchema() throws ConfigurationException
     {
-        SchemaLoader.prepareServer();
+        ServerTestUtils.prepareServer();
         SchemaLoader.createKeyspace(KEYSPACE,
                                     KeyspaceParams.simple(1),
                                     TableMetadata.builder(KEYSPACE, CF1)

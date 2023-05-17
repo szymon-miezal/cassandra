@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import com.google.common.io.Files;
 
 import org.apache.cassandra.db.rows.Row;
+import org.apache.cassandra.ServerTestUtils;
 import org.apache.cassandra.io.util.File;
 import org.junit.After;
 import org.junit.Before;
@@ -71,7 +72,7 @@ public class SSTableLoaderTest
     @BeforeClass
     public static void defineSchema()
     {
-        SchemaLoader.prepareServer();
+        ServerTestUtils.prepareServerNoRegister();
         SchemaLoader.createKeyspace(KEYSPACE1,
                                     KeyspaceParams.simple(1),
                                     SchemaLoader.standardCFMD(KEYSPACE1, CF_STANDARD1),
