@@ -50,7 +50,6 @@ import static org.apache.cassandra.config.CassandraRelevantProperties.RESET_BOOT
 import static org.apache.cassandra.distributed.action.GossipHelper.withProperty;
 import static org.apache.cassandra.distributed.api.Feature.GOSSIP;
 import static org.apache.cassandra.distributed.api.Feature.NETWORK;
-import static org.junit.Assert.fail;
 
 
 public class BootstrapTest extends TestBaseImpl
@@ -92,9 +91,7 @@ public class BootstrapTest extends TestBaseImpl
     @Test
     public void bootstrapUnspecifiedFailsOnResumeTest() throws Throwable
     {
-        // TODO (TCM) Revisit resumable bootstrap
-        fail("Resuming of failed bootstrap is not yet implemented for TCM");
-        RESET_BOOTSTRAP_PROGRESS.clearValue(); // checkstyle: suppress nearby 'clearValueSystemPropertyUsage'
+        RESET_BOOTSTRAP_PROGRESS.reset();
 
         // Need our partitioner active for rangeToBytes conversion below
         Config c = DatabaseDescriptor.loadConfig();
