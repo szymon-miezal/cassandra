@@ -20,14 +20,11 @@ package org.apache.cassandra.distributed.test;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.junit.Test;
 
 import com.datastax.driver.core.PlainTextAuthProvider;
-import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
 import org.apache.cassandra.auth.CassandraRoleManager;
@@ -39,6 +36,7 @@ import org.apache.cassandra.distributed.api.IInvokableInstance;
 import org.apache.cassandra.distributed.api.IMessageFilters.Filter;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.locator.SimpleSeedProvider;
+import org.apache.cassandra.net.Verb;
 import org.apache.cassandra.service.StorageService;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -70,7 +68,9 @@ public class AuthTest extends TestBaseImpl
     }
 
     /**
-     * See CASSANDRA-12525 for more information.
+     * CASSANDRA-12525 has solved this issue in a way that was reconciling the passwords (ie any override of the password would
+     * supercede default password as soon as node learns about existence of other peers). With transactional metadata, this
+     * issue simply does not exist since nodes always know about the auth placements.
      */
     @Test
     public void testZeroTimestampForDefaultRoleCreation() throws Exception
@@ -97,42 +97,38 @@ public class AuthTest extends TestBaseImpl
             IInvokableInstance secondNode = getSecondNode(cluster);
 
             // drop all communication between nodes
-            Filter to = cluster.filters().allVerbs().inbound().drop();
-            Filter from = cluster.filters().allVerbs().outbound().drop();
+            Filter to = cluster.filters().inbound()
+                               .messagesMatching((i, i1, msg) -> !Verb.fromId(msg.verb()).toString().contains("TCM"))
+                               .drop();
+            Filter from = cluster.filters().outbound()
+                                 .messagesMatching((i, i1, msg) -> !Verb.fromId(msg.verb()).toString().contains("TCM"))
+                                 .drop();
 
             secondNode.startup();
-            waitForExistingRoles(secondNode);
-
-            long passwordWritetimeOnSecondNode = getPasswordWritetime(cluster.coordinator(2));
-
-            // as new node thinks it is alone in cluster, it created new role with TIMESTAMP 0
-            assertEquals(0, passwordWritetimeOnSecondNode);
-
-            // the fact we can still log in with old password shows we dropped all communication
-            // and the second node thinks that it is alone in the cluster, so it created new cassandra role
-            // with default password
-            doWithSession("127.0.0.2",
-                          "datacenter2",
-                          "cassandra", session -> session.execute("select * from system.local"));
 
             // turn off filters
             to.off();
             from.off();
 
-            // be sure the first peer is there for the second node
-            await()
-            .atMost(1, TimeUnit.MINUTES)
-            .pollInterval(10, SECONDS)
-            .until(() -> {
-                List<Row> rows = doWithSession("127.0.0.2",
-                                               "datacenter2",
-                                               "cassandra",
-                                               session -> session.execute("select * from system.peers")).all();
-                if (rows.isEmpty())
-                    return false;
+            try
+            {
+                waitForExistingRoles(secondNode);
+            }
+            catch (Throwable t)
+            {
+                assertTrue(t.getMessage().contains("ReadTimeoutException"));
+            }
 
-                return rows.get(0).getInet("peer").getHostAddress().equals("127.0.0.1");
-            });
+            // Node has started with auto_bootstrap=false, and it just so happens that this key belongs to node2, so we get no results
+            assertEquals(0L,
+                         cluster.coordinator(2)
+                                .execute("SELECT WRITETIME (salted_hash) from system_auth.roles where role = 'cassandra'",
+                                         ConsistencyLevel.LOCAL_ONE)[0][0]);
+
+            // since Auth is initialized once per cluster now, we naturally can _not_ authenticate because the keyspace is
+            doWithSession("127.0.0.2",
+                          "datacenter2",
+                          "cassandra", session -> session.execute("select * from system.local"));
 
             // change the replication strategy
             doWithSession("127.0.0.2",
