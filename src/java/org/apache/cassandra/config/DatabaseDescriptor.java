@@ -4974,4 +4974,9 @@ public class DatabaseDescriptor
     {
         conf.reject_out_of_token_range_requests = enabled;
     }
+
+    public static boolean getUnsafeTCMMode()
+    {
+        return conf.unsafe_tcm_mode;
+    }
 }
