@@ -154,7 +154,6 @@ public class RepairMessageVerbHandler implements IVerbHandler<RepairMessage>
                     MessagingService.instance().send(message.emptyResponse(), message.from());
                     ValidationRequest validationRequest = (ValidationRequest) message.payload;
                     logger.debug("Validating {}", validationRequest);
-
                     ParticipateState participate = ActiveRepairService.instance.participate(desc.parentSessionId);
                     if (participate == null)
                     {

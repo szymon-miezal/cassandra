@@ -59,6 +59,7 @@ import org.apache.cassandra.utils.concurrent.FutureCombiner;
 import org.apache.cassandra.utils.concurrent.ImmediateFuture;
 
 import static org.apache.cassandra.config.DatabaseDescriptor.paxosRepairEnabled;
+import static org.apache.cassandra.schema.SchemaConstants.METADATA_KEYSPACE_NAME;
 import static org.apache.cassandra.service.paxos.Paxos.useV2;
 import static org.apache.cassandra.utils.Clock.Global.currentTimeMillis;
 
@@ -125,7 +126,7 @@ public class RepairJob extends AsyncFuture<RepairResult> implements Runnable
 
         Future<List<TreeResponse>> treeResponses;
         Future<Void> paxosRepair;
-        if (paxosRepairEnabled() && ((useV2() && session.repairPaxos) || session.paxosOnly))
+        if (paxosRepairEnabled() && (((useV2() || isMetadataKeyspace()) && session.repairPaxos) || session.paxosOnly))
         {
             logger.info("{} {}.{} starting paxos repair", session.previewKind.logPrefix(session.getId()), desc.keyspace, desc.columnFamily);
             TableMetadata metadata = Schema.instance.getTableMetadata(desc.keyspace, desc.columnFamily);
@@ -246,6 +247,11 @@ public class RepairJob extends AsyncFuture<RepairResult> implements Runnable
                            : t);
             }
         }, taskExecutor);
+    }
+
+    private boolean isMetadataKeyspace()
+    {
+        return desc.keyspace.equals(METADATA_KEYSPACE_NAME);
     }
 
     private boolean isTransient(InetAddressAndPort ep)
