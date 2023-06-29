@@ -5783,7 +5783,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
     @Override
     public void replayAndWait()
     {
-        ClusterMetadataService.instance().replayAndWait();
+        ClusterMetadataService.instance().fetchLogFromCMS();
     }
 
     @Override
