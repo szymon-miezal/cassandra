@@ -29,10 +29,12 @@ import java.net.UnknownHostException;
 import java.nio.file.FileStore;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -137,6 +139,7 @@ import static org.apache.cassandra.config.CassandraRelevantProperties.UNSAFE_SYS
 import static org.apache.cassandra.config.DataRateSpec.DataRateUnit.BYTES_PER_SECOND;
 import static org.apache.cassandra.config.DataRateSpec.DataRateUnit.MEBIBYTES_PER_SECOND;
 import static org.apache.cassandra.config.DataStorageSpec.DataStorageUnit.MEBIBYTES;
+import static org.apache.cassandra.db.ConsistencyLevel.*;
 import static org.apache.cassandra.io.util.FileUtils.ONE_GIB;
 import static org.apache.cassandra.io.util.FileUtils.ONE_MIB;
 import static org.apache.cassandra.utils.Clock.Global.logInitializationOutcome;
@@ -981,6 +984,20 @@ public class DatabaseDescriptor
             throw new ConfigurationException(String.format("Invalid configuration. Heap dump is enabled but cannot create heap dump output path: %s.", conf.heap_dump_path != null ? conf.heap_dump_path : "null"));
 
         conf.sai_options.validate();
+
+        List<ConsistencyLevel> progressBarrierCLsArr = Arrays.asList(ALL, EACH_QUORUM, LOCAL_QUORUM, QUORUM, ONE, NODE_LOCAL);
+        Set<ConsistencyLevel> progressBarrierCls = new HashSet<>(progressBarrierCLsArr);
+        if (!progressBarrierCls.contains(conf.progress_barrier_min_consistency_level))
+        {
+            throw new ConfigurationException(String.format("Invalid value for progress_barrier_min_consistency_level %s. Allowed values: %s",
+                                                           conf.progress_barrier_min_consistency_level, progressBarrierCLsArr));
+        }
+
+        if (!progressBarrierCls.contains(conf.progress_barrier_default_consistency_level))
+        {
+            throw new ConfigurationException(String.format("Invalid value for.progress_barrier_default_consistency_level %s. Allowed values: %s",
+                                                           conf.progress_barrier_default_consistency_level, progressBarrierCLsArr));
+        }
     }
 
     @VisibleForTesting
@@ -4920,14 +4937,19 @@ public class DatabaseDescriptor
         return conf.sai_options.segment_write_buffer_size;
     }
 
-    public static int getDefaultRetryMaxTries()
+    public static int getCmsDefaultRetryMaxTries()
     {
-        return conf.default_retry_max_tries;
+        return conf.cms_default_max_retries;
+    }
+
+    public static void setCmsDefaultRetryMaxTries(int value)
+    {
+        conf.cms_default_max_retries = value;
     }
 
     public static DurationSpec getDefaultRetryBackoff()
     {
-        return conf.default_retry_backoff;
+        return conf.cms_default_retry_backoff;
     }
 
     public static DurationSpec getCmsAwaitTimeout()
@@ -4945,12 +4967,12 @@ public class DatabaseDescriptor
         conf.metadata_snapshot_frequency = frequency;
     }
 
-    public static ConsistencyLevel getProgressBarrierLowestAcceptableConsistencyLevel()
+    public static ConsistencyLevel getProgressBarrierMinConsistencyLevel()
     {
         return conf.progress_barrier_min_consistency_level;
     }
 
-    public static void setProgressBarrierLowestAcceptableConsistencyLevel(ConsistencyLevel newLevel)
+    public static void setProgressBarrierMinConsistencyLevel(ConsistencyLevel newLevel)
     {
         conf.progress_barrier_min_consistency_level = newLevel;
     }
@@ -4973,6 +4995,31 @@ public class DatabaseDescriptor
     public static void setRejectOutOfTokenRangeRequests(boolean enabled)
     {
         conf.reject_out_of_token_range_requests = enabled;
+    }
+
+    public static ConsistencyLevel getProgressBarrierDefaultConsistencyLevel()
+    {
+        return conf.progress_barrier_default_consistency_level;
+    }
+
+    public static long getProgressBarrierTimeout(TimeUnit unit)
+    {
+        return conf.progress_barrier_timeout.to(unit);
+    }
+
+    public static long getProgressBarrierBackoff(TimeUnit unit)
+    {
+        return conf.progress_barrier_backoff.to(unit);
+    }
+
+    public static void setProgressBarrierTimeout(long timeOutInMillis)
+    {
+        conf.progress_barrier_timeout = new DurationSpec.LongMillisecondsBound(timeOutInMillis);
+    }
+
+    public static void setProgressBarrierBackoff(long timeOutInMillis)
+    {
+        conf.progress_barrier_backoff = new DurationSpec.LongMillisecondsBound(timeOutInMillis);
     }
 
     public static boolean getUnsafeTCMMode()
