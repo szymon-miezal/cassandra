@@ -637,7 +637,7 @@ public class CompactionManager implements CompactionManagerMBean
 
     private boolean nodeHasPendingRangesForKeyspace(ColumnFamilyStore cfs)
     {
-        return !StorageService.instance.getTokenMetadata().getPendingRanges(cfs.keyspace.getName(), FBUtilities.getBroadcastAddress()).isEmpty();
+        return !StorageService.instance.getTokenMetadata().getPendingRanges(cfs.keyspace.getName(), FBUtilities.getBroadcastAddressAndPort()).isEmpty();
     }
 
     public AllSSTableOpStatus performGarbageCollection(final ColumnFamilyStore cfStore, TombstoneOption tombstoneOption, int jobs) throws InterruptedException, ExecutionException
