@@ -344,8 +344,11 @@ public class PartitionUpdate extends AbstractBTreePartition
      */
     public int dataSize()
     {
-        return Ints.saturatedCast(BTree.<Row>accumulate(holder.tree, (row, value) -> row.dataSize() + value, 0L)
-                + holder.staticRow.dataSize() + holder.deletionInfo.dataSize());
+        long rowsSize = BTree.<Row>accumulate(holder.tree, (row, value) -> row.dataSize() + value, 0L);
+        int staticRowSize = holder.staticRow.dataSize();
+        int deletionInfoSize = holder.deletionInfo.dataSize();
+        logger.debug("Row size: {}, static row size: {}, deletion info size: {}", rowsSize, staticRowSize, deletionInfoSize);
+        return Ints.saturatedCast(rowsSize + staticRowSize + deletionInfoSize);
     }
 
     /**
