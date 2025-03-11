@@ -100,6 +100,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     static final ApplicationState[] STATES = ApplicationState.values();
     static final List<String> DEAD_STATES = Arrays.asList(VersionedValue.REMOVING_TOKEN, VersionedValue.REMOVED_TOKEN,
                                                           VersionedValue.STATUS_LEFT, VersionedValue.HIBERNATE);
+    static final List<String> DEAD_NON_HIBERNATED_STATES = DEAD_STATES.stream().filter(s -> !VersionedValue.HIBERNATE.equals(s)).collect(Collectors.toList());
     static ArrayList<String> SILENT_SHUTDOWN_STATES = new ArrayList<>();
     static
     {
@@ -935,8 +936,10 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             double randDbl = random.nextDouble();
             if (randDbl < prob)
             {
-                sendGossip(message, Sets.filter(unreachableEndpoints.keySet(),
-                                                ep -> !isDeadState(getEndpointStateMap().get(ep))));
+                sendGossip(message, unreachableEndpoints.keySet()
+                                                        .stream()
+                                                        .filter(ep -> !isDeadNonHibernatedState(getEndpointStateMap().get(ep)))
+                                                        .collect(Collectors.toSet()));
             }
         }
     }
@@ -1391,11 +1394,13 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     /**
      * This method is called whenever there is a "big" change in ep state (a generation change for a known node).
+     * It is public as the state change simulation is needed in testing, otherwise should not be used directly.
      *
      * @param ep      endpoint
      * @param epState EndpointState for the endpoint
      */
-    private void handleMajorStateChange(InetAddressAndPort ep, EndpointState epState)
+    @VisibleForTesting
+    public void handleMajorStateChange(InetAddressAndPort ep, EndpointState epState)
     {
         checkProperThreadForStateMutation();
         EndpointState localEpState = endpointStateMap.get(ep);
@@ -1447,6 +1452,15 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             return false;
 
         return DEAD_STATES.contains(status);
+    }
+
+    public boolean isDeadNonHibernatedState(EndpointState epState)
+    {
+        String status = getGossipStatus(epState);
+        if (status.isEmpty())
+            return false;
+
+        return DEAD_NON_HIBERNATED_STATES.contains(status);
     }
 
     public boolean isSilentShutdownState(EndpointState epState)
