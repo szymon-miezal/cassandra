@@ -933,8 +933,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                 // order is important here, the gossiper can fire in between adding these two states.  It's ok to send TOKENS without STATUS, but *not* vice versa.
                 List<Pair<ApplicationState, VersionedValue>> states = new ArrayList<Pair<ApplicationState, VersionedValue>>();
                 states.add(Pair.create(ApplicationState.TOKENS, valueFactory.tokens(tokens)));
-                states.add(Pair.create(ApplicationState.STATUS_WITH_PORT, valueFactory.hibernate(true)));
-                states.add(Pair.create(ApplicationState.STATUS, valueFactory.hibernate(true)));
+                states.add(Pair.create(ApplicationState.STATUS_WITH_PORT, valueFactory.shutdown(true)));
+                states.add(Pair.create(ApplicationState.STATUS, valueFactory.shutdown(true)));
                 Gossiper.instance.addLocalApplicationStates(states);
             }
             doAuthSetup(true);
@@ -1050,8 +1050,8 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
                                 "the node to be replaced ({}). If the previous node has been down for longer than max_hint_window_in_ms, " +
                                 "repair must be run after the replacement process in order to make this node consistent.",
                                 DatabaseDescriptor.getReplaceAddress());
-                    appStates.put(ApplicationState.STATUS_WITH_PORT, valueFactory.hibernate(true));
-                    appStates.put(ApplicationState.STATUS, valueFactory.hibernate(true));
+                    appStates.put(ApplicationState.STATUS_WITH_PORT, valueFactory.shutdown(true));
+                    appStates.put(ApplicationState.STATUS, valueFactory.shutdown(true));
                 }
                 MigrationCoordinator.instance.removeAndIgnoreEndpoint(DatabaseDescriptor.getReplaceAddress());
             }
@@ -1897,7 +1897,9 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
             SystemKeyspace.removeEndpoint(DatabaseDescriptor.getReplaceAddress());
         }
         if (!Gossiper.instance.seenAnySeed())
+        {
             throw new IllegalStateException("Unable to contact any seeds: " + Gossiper.instance.getSeeds());
+        }
 
         if (Boolean.getBoolean("cassandra.reset_bootstrap_progress"))
         {

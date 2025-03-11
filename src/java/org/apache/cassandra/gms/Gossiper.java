@@ -1391,11 +1391,13 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     /**
      * This method is called whenever there is a "big" change in ep state (a generation change for a known node).
+     * It is public as the state change simulation is needed in testing, otherwise should not be used directly.
      *
      * @param ep      endpoint
      * @param epState EndpointState for the endpoint
      */
-    private void handleMajorStateChange(InetAddressAndPort ep, EndpointState epState)
+    @VisibleForTesting
+    public void handleMajorStateChange(InetAddressAndPort ep, EndpointState epState)
     {
         checkProperThreadForStateMutation();
         EndpointState localEpState = endpointStateMap.get(ep);
